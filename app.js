@@ -69,15 +69,23 @@ app.get('/author_views_story',(req,res)=>{
 app.get('/total_author_views_story',(req,res)=>{
     stories.aggregate([
         {
-            $group:{_id:"$author_id",count:{$sum:"$views_count"}}
+            $group:{
+            _id:"$author_id",
+            count_var:{$sum:"$views_count"}
+            }
         },
         {
-            $count:"TotalViews"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$count_var"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
     })
-})
+});
 
 //Get the Views Response Associated with series written by author.
 
@@ -96,10 +104,15 @@ app.get('/author_views_series',(req,res)=>{
 app.get('/total_author_views_series',(req,res)=>{
     Kahanies.aggregate([
         {
-            $group:{_id:"$author_id",count:{$sum:"$views_count"}}
+            $group:{_id:"$author_id",count_var:{$sum:"$views_count"}}
         },
         {
-            $count:"TotalViews"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$count_var"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
@@ -124,10 +137,15 @@ app.get('/story_views',(req,res)=>{
 app.get('/total_story_views',(req,res)=>{
     Views.aggregate([
         {
-            $group:{_id:"$story_id",count:{$sum:1}}
+            $group:{_id:"$story_id",count_var:{$sum:1}}
         },
         {
-            $count: "TotalViews"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$count_var"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
@@ -152,10 +170,15 @@ app.get('/series_views',(req,res)=>{
 app.get('/total_series_views',(req,res)=>{
     kahanies.aggregate([
         {
-            $group:{_id:"$_id",count:{$sum:"$views_count"}}
+            $group:{_id:"$_id",count_var:{$sum:"$views_count"}}
         },
         {
-            $count: "TotalViews"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$count_var"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
@@ -190,7 +213,12 @@ app.get('/total_story_coins',(req,res)=>{
             $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
         },
         {
-            $count:"Total_Coins"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$Coins_count"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
@@ -224,7 +252,12 @@ app.get('/total_series_coins',(req,res)=>{
             $group:{_id:"$kahani_id",Coins_count:{$sum:"$coins"}}
         },
         {
-            $count:"Total_Coins"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$Coins_count"
+            }
+            }
         }
     ],(err,data)=>{
         res.send(data);
@@ -250,7 +283,7 @@ app.get('/author_wise_coins',(req,res)=>{
         }
     ],(err,data)=>{
         //res.send(data);
-        console.log(data);
+        res.send(data);
     })
 })
 
@@ -316,7 +349,7 @@ app.post('/language_wise_coins',(req,res)=>{
             $group:{_id:"$language",Coins_count:{$sum:"$saqlain.coins"}}
         }
 ],(err,data)=>{
-    console.log(data);
+    res.send(data);
 })
 });
 
