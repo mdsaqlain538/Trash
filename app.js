@@ -9,7 +9,6 @@ var port = process.env.port || 1234;
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var morgan = require('morgan');
-const cron = require('node-cron');
 const shell = require('shelljs');
  
 //Middle ware..
@@ -22,6 +21,7 @@ const users = require('./models/users');
 const Views = require('./models/storyViews');
 const Transacation = require('./models/transactions');
 const Kahanies = require('./models/kahanies');
+const saqlain = require('./models/saqlain');
 
 
 app.use(morgan("dev"));
@@ -49,7 +49,87 @@ useCreateIndex:true
 //     console.log('Nodejs Script Running');
 // })
 
+//sample cron job implementation
+const cron = require('node-cron');
+const { db } = require('./models/stories');
+var total_author_stories,total_author_series;
 
+try {
+    cron.schedule("*/1 * * * *",(req,res)=>{
+        var x =new Date();
+        console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
+    stories.aggregate([
+            {
+                $group:{
+                _id:"$author_id",
+                count_var:{$sum:"$views_count"}
+                }
+            },
+            {
+                $group:{
+                _id:null,
+                total:{
+                    $sum:"$count_var"
+                }
+                }
+            }
+        ],(err,data)=>{
+            total_author_stories = data;
+            //console.log('--------Total Author Views Associated with Stories Only.--------')
+            //console.log(data);
+            //(total_author_stories[0]).total);
+
+        })
+    Kahanies.aggregate([
+            {
+                $group:{
+                    _id:"$author_id",
+                    count_var:{$sum:"$views_count"}
+                }
+            },
+            {
+                $group:{
+                _id:null,
+                total:{
+                    $sum:"$count_var"
+                }
+                }
+            }
+        ],(err,data)=>{
+            total_author_series = data;
+            //console.log('--------Total Author Views Associated with Series Only.--------')
+            //(total_author_series[0]).total);
+
+            const obj = new saqlain();
+            obj.total_author_story_views = total_author_stories[0].total;
+            obj.total_author_sries_views = total_author_series[0].total;
+
+            //console.log(obj);
+
+            obj.save((err,obj)=>{
+                console.log(obj);
+            })
+        })
+    },{
+        schedule:true,
+        timezone:"Asia/Kolkata",
+        })
+} catch (error) {
+    console.log(error);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// Below Codes are functionalities associated for Cron Job Usage.
 
 //Response the views assocaited with story written by author.
 
@@ -266,20 +346,27 @@ app.get('/total_series_coins',(req,res)=>{
 
 
 app.get('/author_wise_coins',(req,res)=>{
-    Transacation.aggregate([
+    stories.aggregate([
+        //my new code
         {
-            $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
-        },
-        {
-            $group:{_id:"$user_id",Coins_count:{$sum:"$coins"}}
+            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*100000)}}
         },
         {
             $lookup:{
-                from:"stories",
-                localField:"user_id",
-                foreignField:"author_id",
+                from:"transactions",
+                localField:"author_id",
+                foreignField:"user_id",
                 as:"saqlain"
             }
+        },
+        {
+            $unwind:"$saqlain"
+        },
+        {
+            $match:{ $or: [{"saqlain.transaction_type":"earn"},{"saqlain.transaction_type":"credit"}]}
+        },
+        {
+            $group:{_id:"$author_id",Coins_count:{$sum:"$saqlain.coins"}}
         }
     ],(err,data)=>{
         //res.send(data);
@@ -307,6 +394,21 @@ app.get('/views_by_day',(req,res)=>{
     })
 })
 
+app.get('/author_coins',(req,res)=>{
+    Kahanies.aggregate([
+        {
+            $lookup:{
+                from:"kahanies",
+                localField:"author_id",
+                foreignField:"user_id",
+                as:"saqlain"
+            }
+        }
+    ],(err,data)=>{
+        console.log(data);
+    })
+})
+
 
 
 app.post('/language_wise_views',(req,res)=>{
@@ -326,16 +428,18 @@ app.post('/language_wise_views',(req,res)=>{
 
 app.post('/language_wise_coins',(req,res)=>{
     let lang = req.body.language;
-    console.log(lang);
+    console.log(new Date(Date.now() - 24*60*60*1000000));
     Kahanies.aggregate([
         {
-            $match:{ language : lang }
+            $match:{
+                $and: [{language:lang},{created_at:{"$gt": new Date(Date.now() - 24*60*60*1000)}}]
+                }
         },
         {
             $lookup:{
                 from:"transactions",
-                localField:"author_id",
-                foreignField:"user_id",
+                localField:"_id",
+                foreignField:"kahani_id",
                 as:"saqlain"
             }
         },
