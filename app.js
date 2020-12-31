@@ -52,7 +52,7 @@ useCreateIndex:true
 //sample cron job implementation
 const cron = require('node-cron');
 const { db } = require('./models/stories');
-var total_author_stories,total_author_series;
+var total_author_stories,total_author_series,total_story_views_value,total_story_coins_value;
 
 try {
     cron.schedule("*/1 * * * *",(req,res)=>{
@@ -73,12 +73,23 @@ try {
                 }
                 }
             }
+        ],(err,result)=>{
+            total_author_stories = result;
+        })
+    Views.aggregate([
+            {
+                $group:{_id:"$story_id",count_var:{$sum:1}}
+            },
+            {
+                $group:{
+                _id:null,
+                total:{
+                    $sum:"$count_var"
+                }
+                }
+            }
         ],(err,data)=>{
-            total_author_stories = data;
-            //console.log('--------Total Author Views Associated with Stories Only.--------')
-            //console.log(data);
-            //(total_author_stories[0]).total);
-
+            total_story_views_value = data;
         })
     Kahanies.aggregate([
             {
@@ -95,19 +106,34 @@ try {
                 }
                 }
             }
+        ],(err,value)=>{
+            total_author_series = value;
+        })
+    Transacation.aggregate([
+            {
+                $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
+            },
+            {
+                $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
+            },
+            {
+                $group:{
+                _id:null,
+                total:{
+                    $sum:"$Coins_count"
+                }
+                }
+            }
         ],(err,data)=>{
-            total_author_series = data;
-            //console.log('--------Total Author Views Associated with Series Only.--------')
-            //(total_author_series[0]).total);
-
+            total_story_coins_value = data;
             const obj = new saqlain();
             obj.total_author_story_views = total_author_stories[0].total;
-            obj.total_author_sries_views = total_author_series[0].total;
+            obj.total_author_series_views = total_author_series[0].total;
+            obj.total_story_views = total_story_views_value[0].total;
+            obj.total_story_coins = total_story_coins_value[0].total;
 
-            //console.log(obj);
-
-            obj.save((err,obj)=>{
-                console.log(obj);
+            obj.save((err,value)=>{
+                console.log(value);
             })
         })
     },{

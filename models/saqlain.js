@@ -5,7 +5,13 @@ const saqlainSchema = new mongoose.Schema({
     total_author_story_views:{
         type:Number
     },
-    total_author_sries_views:{
+    total_author_series_views:{
+        type:Number
+    },
+    total_story_views:{
+        type:Number
+    },
+    total_story_coins:{
         type:Number
     }
 });
