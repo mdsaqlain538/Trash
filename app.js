@@ -51,11 +51,10 @@ useCreateIndex:true
 
 //sample cron job implementation
 const cron = require('node-cron');
-const { db } = require('./models/stories');
 var total_author_stories,total_author_series,total_story_views_value,total_story_coins_value;
 
 try {
-    cron.schedule("*/1 * * * *",(req,res)=>{
+    cron.schedule((req,res)=>{
         var x =new Date();
         console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
     stories.aggregate([
@@ -150,106 +149,284 @@ try {
 
 
 
-
-
-
-
-
 // Below Codes are functionalities associated for Cron Job Usage.
 
-//Response the views assocaited with story written by author.
+
+// Users by Daily - $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*1000)}}
+// Users by Weekly - 
+
+
+//done
+app.post('/total_users',(req,res)=>{
+    var start_date = req.body.start;
+    var end_date = req.body.end;
+    
+    if(start_date==end_date){
+        start_date = start_date + " 00:00:00.000Z";
+        end_date = end_date + " 23:59:00.000Z";
+        converted_start_date=new Date(Date.parse(start_date));
+        converted_end_date = new Date(Date.parse(end_date));
+        users.aggregate([
+            {
+                $match:{
+                    "created_at":{"$gte": converted_start_date , "$lte":converted_end_date}
+                }
+            },
+            {
+                $count:"Total Users"
+            }
+        ],(err,data)=>{
+            res.send(data);
+        })
+    }else{
+        start_date = start_date + " 00:00:00.000Z";
+        end_date = end_date + " 00:00:00.000Z";
+        converted_start_date=new Date(Date.parse(start_date));
+        converted_end_date = new Date(Date.parse(end_date));
+        users.aggregate([
+            {
+                $match:{
+                    "created_at":{"$gte": converted_start_date , "$lte":converted_end_date}
+                }
+            },
+            {
+                $count:"Total Users"
+            }
+        ],(err,data)=>{
+            res.send(data);
+        })
+    }   
+})
+
+
+//done
+app.post('/users_montly',(req,res)=>{
+    var date = req.body.date;
+    var year = date[0]+date[1]+date[2]+date[3];
+
+    var months = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+    //console.log(year);
+    start_year = year;
+    // end_year = year+1;
+
+    var result = [];
+
+    converted_start_date = start_year+'-01'+'-01';
+    converted_end_date = start_year+'-01'+'31';
+    
+    for(let i=1;i<=12;i++){
+        if(i<=10){
+            converted_start_date = start_year+'-0'+i+'-01';
+            converted_end_date = start_year+'-0'+i+'-31';
+            converted_start_date=new Date(Date.parse(converted_start_date));
+            converted_end_date=new Date(Date.parse(converted_end_date));
+        }
+
+        else{
+
+            converted_start_date = start_year+i+'-01';
+            converted_end_date = start_year+i+'-31';
+            converted_start_date=new Date(Date.parse(converted_start_date));
+            converted_end_date=new Date(Date.parse(converted_end_date));
+        }
+
+            users.aggregate([
+                {
+                    $match:{
+                        "created_at":{"$gte": converted_start_date , "$lte":converted_end_date}
+                    }
+                },
+                {
+                    $count:"Users"
+                }
+            ],(err,data)=>{
+                if(data.length==1){
+                    result.push({
+                        month: months[i-1],
+                        Users: data[0].Users
+                    });
+                }else{
+                    result.push({
+                        month: months[i-1],
+                        Users: 0
+                    });
+                }
+                if(i==12){
+                    res.send(result);
+                }
+            })
+    }
+})
+
+
+//Response the views assocaited with series written by author.
+//done
 
 app.get('/author_views_story',(req,res)=>{
-    stories.aggregate([
+    users.aggregate([
         {
-            $group:{_id:"$author_id",count:{$sum:"$views_count"}}
+            $project:{"user_id":{"$toString":"$_id"},"name":{"$toString":"$full_name"}}
+        },
+        {
+            $lookup:{
+                from:"kahanies",
+                localField:"user_id",
+                foreignField:"author_id",
+                as:"saqlain"
+            }
+        },
+        {
+          $unwind:"$saqlain"  
+        },
+        {
+            $match:{"saqlain.type":"story"}
+        },
+        {
+            $group:{_id:"$name",Views_Count:{$sum:"$saqlain.views_count"}}
         }
     ],(err,data)=>{
-        res.send(data);
+        console.log(data);
     })
 });
 
 
 // Get the total views assocaited with story written by author.
+//done
 
 app.get('/total_author_views_story',(req,res)=>{
-    stories.aggregate([
+    users.aggregate([
         {
-            $group:{
-            _id:"$author_id",
-            count_var:{$sum:"$views_count"}
+            $project:{"user_id":{"$toString":"$_id"},"name":{"$toString":"$full_name"}}
+        },
+        {
+            $lookup:{
+                from:"kahanies",
+                localField:"user_id",
+                foreignField:"author_id",
+                as:"saqlain"
             }
+        },
+        {
+          $unwind:"$saqlain"  
+        },
+        {
+            $match:{"saqlain.type":"story"}
+        },
+        {
+            $group:{_id:"$name",Views_Count:{$sum:"$saqlain.views_count"}}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$count_var"
+                $sum:"$Views_Count"
             }
             }
         }
     ],(err,data)=>{
-        res.send(data);
+        console.log(data);
     })
 });
 
 //Get the Views Response Associated with series written by author.
-
+//done
 app.get('/author_views_series',(req,res)=>{
-    Kahanies.aggregate([
+    users.aggregate([
         {
-            $group:{_id:"$author_id",count:{$sum:"$views_count"}}
+            $project:{"user_id":{"$toString":"$_id"},"name":{"$toString":"$full_name"}}
+        },
+        {
+            $lookup:{
+                from:"kahanies",
+                localField:"user_id",
+                foreignField:"author_id",
+                as:"saqlain"
+            }
+        },
+        {
+          $unwind:"$saqlain"  
+        },
+        {
+            $match:{"saqlain.type":"series"}
+        },
+        {
+            $group:{_id:"$name",Views_Count:{$sum:"$saqlain.views_count"}}
         }
     ],(err,data)=>{
-        res.send(data);
+        console.log(data);
     })
 });
 
 //Get the Total Views Response Associated with series written by author.
-
+//done
 app.get('/total_author_views_series',(req,res)=>{
-    Kahanies.aggregate([
+    users.aggregate([
         {
-            $group:{_id:"$author_id",count_var:{$sum:"$views_count"}}
+            $project:{"user_id":{"$toString":"$_id"},"name":{"$toString":"$full_name"}}
+        },
+        {
+            $lookup:{
+                from:"kahanies",
+                localField:"user_id",
+                foreignField:"author_id",
+                as:"saqlain"
+            }
+        },
+        {
+          $unwind:"$saqlain"  
+        },
+        {
+            $match:{"saqlain.type":"series"}
+        },
+        {
+            $group:{_id:"$name",Views_Count:{$sum:"$saqlain.views_count"}}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$count_var"
+                $sum:"$Views_Count"
             }
             }
         }
     ],(err,data)=>{
-        res.send(data);
+        console.log(data);
     })
 })
 
 
 // Response the views Assocaited with stories.
+//done
 
 app.get('/story_views',(req,res)=>{
-    Views.aggregate([
+    kahanies.aggregate([
         {
-            $group:{_id:"$story_id",count:{$sum:1}}
-        }
+            $match:{type:"story"}
+        },
+        {
+            $group:{_id:"$_id",Views_Count:{$sum:"$views_count"}}
+        }  
     ],(err,data)=>{
         res.send(data);
-    });
+    })
 });
 
 // Response the Total views Assocaited with stories.
+//done
 
 app.get('/total_story_views',(req,res)=>{
-    Views.aggregate([
+    Kahanies.aggregate([
+        // {
+        //     // $group:{_id:"$story_id",count_var:{$sum:1}}
+        // },
         {
-            $group:{_id:"$story_id",count_var:{$sum:1}}
+            $match:{type:"story"}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$count_var"
+                $sum:"$views_count"
             }
             }
         }
@@ -259,12 +436,16 @@ app.get('/total_story_views',(req,res)=>{
 });
 
 // Response the views Assocaited with Series.
+//done
 
 app.get('/series_views',(req,res)=>{
     kahanies.aggregate([
         {
-            $group:{_id:"$_id",count:{$sum:"$views_count"}}
-        }
+            $match:{type:"series"}
+        },
+        {
+            $group:{_id:"$_id",Views_Count:{$sum:"$views_count"}}
+        }  
     ],(err,data)=>{
         res.send(data);
     })
@@ -272,17 +453,21 @@ app.get('/series_views',(req,res)=>{
 
 
 // Response the Total views Assocaited with Series.
+//done
 
 app.get('/total_series_views',(req,res)=>{
-    kahanies.aggregate([
+    Kahanies.aggregate([
+        // {
+        //     // $group:{_id:"$story_id",count_var:{$sum:1}}
+        // },
         {
-            $group:{_id:"$_id",count_var:{$sum:"$views_count"}}
+            $match:{type:"series"}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$count_var"
+                $sum:"$views_count"
             }
             }
         }
@@ -294,11 +479,12 @@ app.get('/total_series_views',(req,res)=>{
 
 
 // Response the Coins Assocaited with story.
+//done
 
 app.get('/story_coins',(req,res)=>{
     Transacation.aggregate([
         {
-            $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
+            $match:{ $and: [{transaction_type:"earn"},{product_type:"story"}]}
         },
         {
             $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
@@ -309,20 +495,18 @@ app.get('/story_coins',(req,res)=>{
 })
 
 // Response the Total Coins Assocaited with story.
+//done
 
 app.get('/total_story_coins',(req,res)=>{
     Transacation.aggregate([
         {
-            $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
-        },
-        {
-            $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
+            $match:{ $and: [{transaction_type:"earn"},{product_type:"story"}]}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$Coins_count"
+                $sum:"$coins"
             }
             }
         }
@@ -333,14 +517,14 @@ app.get('/total_story_coins',(req,res)=>{
 
 
 // Response the Coins Assocaited with Series.
-
+//done
 app.get('/series_coins',(req,res)=>{
     Transacation.aggregate([
         {
-            $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
+            $match:{ $and: [{transaction_type:"earn"},{product_type:"series"}]}
         },
         {
-            $group:{_id:"$kahani_id",Coins_count:{$sum:"$coins"}}
+            $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
         }
     ],(err,data)=>{
         res.send(data);
@@ -348,20 +532,17 @@ app.get('/series_coins',(req,res)=>{
 })
 
 // Response the Total Coins Assocaited with Series.
-
+//done
 app.get('/total_series_coins',(req,res)=>{
     Transacation.aggregate([
         {
-            $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
-        },
-        {
-            $group:{_id:"$kahani_id",Coins_count:{$sum:"$coins"}}
+            $match:{ $and: [{transaction_type:"earn"},{product_type:"series"}]}
         },
         {
             $group:{
             _id:null,
             total:{
-                $sum:"$Coins_count"
+                $sum:"$coins"
             }
             }
         }
@@ -370,13 +551,20 @@ app.get('/total_series_coins',(req,res)=>{
     })
 })
 
-
+//done
 app.get('/author_wise_coins',(req,res)=>{
+    var date = new Date();
+    console.log(date);
     stories.aggregate([
         //my new code
         {
-            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*100000)}}
+            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*1000)}}
         },
+        // {
+        //     $match:{
+        //         "created_at":{"$lte":date}
+        //     }
+        // },
         {
             $lookup:{
                 from:"transactions",
@@ -389,7 +577,7 @@ app.get('/author_wise_coins',(req,res)=>{
             $unwind:"$saqlain"
         },
         {
-            $match:{ $or: [{"saqlain.transaction_type":"earn"},{"saqlain.transaction_type":"credit"}]}
+            $match:{ $or: [{"saqlain.transaction_type":"earn"}]}
         },
         {
             $group:{_id:"$author_id",Coins_count:{$sum:"$saqlain.coins"}}
@@ -401,70 +589,76 @@ app.get('/author_wise_coins',(req,res)=>{
 })
 
 // Get a Response of Views Generated with 24 hrs.
-
-app.get('/views_by_day',(req,res)=>{
-    console.log(new Date(Date.now() - 24*60*60));
-
+//done
+app.post('/views_by_start_and_end',(req,res)=>{
+    var start_date = req.body.start;
+    var end_date = req.body.end;
+    start_date = start_date + " 00:00:00.000Z";
+    end_date = end_date + " 00:00:00.000Z";
+    converted_start_date=new Date(Date.parse(start_date));
+    converted_end_date = new Date(Date.parse(end_date));
     Views.aggregate([
         {
-            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*1000)}}
+            $match:{
+                "created_at":{"$gt": converted_start_date , "$lt":converted_end_date}
+            }
         },
         {
-            $group:{_id:"$story_id",count:{$sum:1}}
+            $group:{_id:"$story_id",view_count:{$sum:1}}
         },
         {
-            $count: "TotalViews"
-        }
-    ],(err,data)=>{
-        res.send(data);
-    })
-})
-
-app.get('/author_coins',(req,res)=>{
-    Kahanies.aggregate([
-        {
-            $lookup:{
-                from:"kahanies",
-                localField:"author_id",
-                foreignField:"user_id",
-                as:"saqlain"
+            $group:{
+            _id:null,
+            total:{
+                $sum:"$view_count"
+            }
             }
         }
     ],(err,data)=>{
-        console.log(data);
+        res.send(data);
     })
 })
 
-
-
+//done
 app.post('/language_wise_views',(req,res)=>{
-    let lang = req.body.language;
-
-    Kahanies.aggregate([
+    var lang = req.body.language;
+    kahanies.aggregate([
         {
-            $match:{language:lang}
+            $match:{language:"telugu"}
         },
         {
-            $group:{_id:"$language",count:{$sum:"$views_count"}}
+            $group:{
+                _id:null,
+                total:{
+                    $sum:"$views_count"
+                }
+            }
         }
     ],(err,data)=>{
         res.send(data);
     })
 })
 
+
+//done
 app.post('/language_wise_coins',(req,res)=>{
     let lang = req.body.language;
-    console.log(new Date(Date.now() - 24*60*60*1000000));
     Kahanies.aggregate([
         {
             $match:{
-                $and: [{language:lang},{created_at:{"$gt": new Date(Date.now() - 24*60*60*1000)}}]
+                $and: [{language:lang}]
                 }
+        },
+        {
+            $project:{
+                "saqlain_id":{"$toString":"$_id"},
+                "language":{"$toString":"$language"}
+            }
         },
         {
             $lookup:{
                 from:"transactions",
-                localField:"_id",
+                localField:"saqlain_id",
                 foreignField:"kahani_id",
                 as:"saqlain"
             }
@@ -473,7 +667,7 @@ app.post('/language_wise_coins',(req,res)=>{
             $unwind:"$saqlain"
         },
         {
-            $match:{ $or: [{"saqlain.transaction_type":"earn"},{"saqlain.transaction_type":"credit"}]}
+            $match:{ $or: [{"saqlain.transaction_type":"earn"}]}
         },
         {
             $group:{_id:"$language",Coins_count:{$sum:"$saqlain.coins"}}
@@ -483,18 +677,20 @@ app.post('/language_wise_coins',(req,res)=>{
 })
 });
 
-app.post('/language',(req,res)=>{
-    let lang =  (req.body.language);
-    //console.log(lang);
 
+
+//done
+app.get('/genre_views',(req,res)=>{
     Kahanies.aggregate([
         {
-            $match:{language:lang}
+            $group:{_id:"$genre",count:{$sum:"$views_count"}}
         }
     ],(err,data)=>{
         res.send(data);
     })
-}) 
+})
+
+
 
 app.listen(port);
 console.log('Server started..');
