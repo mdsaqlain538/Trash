@@ -51,97 +51,97 @@ useCreateIndex:true
 
 //sample cron job implementation
 const cron = require('node-cron');
-var total_author_stories,total_author_series,total_story_views_value,total_story_coins_value;
+// var total_author_stories,total_author_series,total_story_views_value,total_story_coins_value;
 
-try {
-    cron.schedule((req,res)=>{
-        var x =new Date();
-        console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
-    stories.aggregate([
-            {
-                $group:{
-                _id:"$author_id",
-                count_var:{$sum:"$views_count"}
-                }
-            },
-            {
-                $group:{
-                _id:null,
-                total:{
-                    $sum:"$count_var"
-                }
-                }
-            }
-        ],(err,result)=>{
-            total_author_stories = result;
-        })
-    Views.aggregate([
-            {
-                $group:{_id:"$story_id",count_var:{$sum:1}}
-            },
-            {
-                $group:{
-                _id:null,
-                total:{
-                    $sum:"$count_var"
-                }
-                }
-            }
-        ],(err,data)=>{
-            total_story_views_value = data;
-        })
-    Kahanies.aggregate([
-            {
-                $group:{
-                    _id:"$author_id",
-                    count_var:{$sum:"$views_count"}
-                }
-            },
-            {
-                $group:{
-                _id:null,
-                total:{
-                    $sum:"$count_var"
-                }
-                }
-            }
-        ],(err,value)=>{
-            total_author_series = value;
-        })
-    Transacation.aggregate([
-            {
-                $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
-            },
-            {
-                $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
-            },
-            {
-                $group:{
-                _id:null,
-                total:{
-                    $sum:"$Coins_count"
-                }
-                }
-            }
-        ],(err,data)=>{
-            total_story_coins_value = data;
-            const obj = new saqlain();
-            obj.total_author_story_views = total_author_stories[0].total;
-            obj.total_author_series_views = total_author_series[0].total;
-            obj.total_story_views = total_story_views_value[0].total;
-            obj.total_story_coins = total_story_coins_value[0].total;
+// try {
+//     cron.schedule((req,res)=>{
+//         var x =new Date();
+//         console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
+//     stories.aggregate([
+//             {
+//                 $group:{
+//                 _id:"$author_id",
+//                 count_var:{$sum:"$views_count"}
+//                 }
+//             },
+//             {
+//                 $group:{
+//                 _id:null,
+//                 total:{
+//                     $sum:"$count_var"
+//                 }
+//                 }
+//             }
+//         ],(err,result)=>{
+//             total_author_stories = result;
+//         })
+//     Views.aggregate([
+//             {
+//                 $group:{_id:"$story_id",count_var:{$sum:1}}
+//             },
+//             {
+//                 $group:{
+//                 _id:null,
+//                 total:{
+//                     $sum:"$count_var"
+//                 }
+//                 }
+//             }
+//         ],(err,data)=>{
+//             total_story_views_value = data;
+//         })
+//     Kahanies.aggregate([
+//             {
+//                 $group:{
+//                     _id:"$author_id",
+//                     count_var:{$sum:"$views_count"}
+//                 }
+//             },
+//             {
+//                 $group:{
+//                 _id:null,
+//                 total:{
+//                     $sum:"$count_var"
+//                 }
+//                 }
+//             }
+//         ],(err,value)=>{
+//             total_author_series = value;
+//         })
+//     Transacation.aggregate([
+//             {
+//                 $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
+//             },
+//             {
+//                 $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
+//             },
+//             {
+//                 $group:{
+//                 _id:null,
+//                 total:{
+//                     $sum:"$Coins_count"
+//                 }
+//                 }
+//             }
+//         ],(err,data)=>{
+//             total_story_coins_value = data;
+//             const obj = new saqlain();
+//             obj.total_author_story_views = total_author_stories[0].total;
+//             obj.total_author_series_views = total_author_series[0].total;
+//             obj.total_story_views = total_story_views_value[0].total;
+//             obj.total_story_coins = total_story_coins_value[0].total;
 
-            obj.save((err,value)=>{
-                console.log(value);
-            })
-        })
-    },{
-        schedule:true,
-        timezone:"Asia/Kolkata",
-        })
-} catch (error) {
-    console.log(error);
-}
+//             obj.save((err,value)=>{
+//                 console.log(value);
+//             })
+//         })
+//     },{
+//         schedule:true,
+//         timezone:"Asia/Kolkata",
+//         })
+// } catch (error) {
+//     console.log(error);
+// }
 
 
 
@@ -691,6 +691,92 @@ app.get('/genre_views',(req,res)=>{
 })
 
 
+//sample
+app.get('/email_sms_data',(req,res)=>{
+    global.user_numbers=[];
+    global.country_code = 91;
+    users.find({email:""},(err,data)=>{
+        //console.log(data);
+        for(let i=0;i<data.length;i++){
+            global.phone_number = parseInt(""+country_code+data[i].phone);
+            //console.log(phone_number);
+            global.check_number =phone_number;
+            if(check_number!=null){
+                //console.log(phone_number.toString().length);
+                if(check_number.toString().length==12){
+                    user_numbers.push(
+                        phone_number
+                    )
+                }
+        }
+        }
+
+        //MSG91 Code  
+        msg91.send("XXXXXXXXXX", "Welcome to Kahaniya Group. MSG91 Implemented by Node.js_INTERN", function(err, response){
+            if(err){
+              console.log(err);
+            }else{
+            console.log(response);
+            }
+          });
+    });
+
+    users.aggregate([
+        {
+            $project: {
+              "email": 1,
+              "length": { $strLenCP: "$email" }
+            }
+          },
+          {
+            $match:{
+                "length":{"$gt": 0 }
+            }
+          }
+    ],(err,data)=>{
+        //send the mails to all users in these block of code.
+        global.user_emails = [];
+        for(let i=0;i<data.length;i++){
+            user_emails.push(users[i].email);
+        }
+
+
+        //SendGrid Code.
+        setTimeout(function(){
+
+            const msg = {
+                to: user_emails,
+                from: {
+                    email: 'pallav@kahaniya.com',
+                    name: 'Pallav Bajjuri'
+                },
+                cc:'admin@kahaniya.com',
+                dynamic_template_data: {
+                  email: email
+                },
+                templateId:'d-979470da14304f689e298abbbbd2638a'
+              };
+
+            //ES6 mail functionality.
+          sgMail
+            .sendMultiple(msg)
+            .then(() => {}, error => {
+              console.error(error);
+
+              if (error.response) {
+                console.error(error.response.body)
+              }
+            });
+          },5000);
+    })
+
+    
+
+    
+    // setTimeout(function(){
+    //     console.log(user_numbers);
+    // },10000);
+})
 
 app.listen(port);
 console.log('Server started..');
