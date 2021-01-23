@@ -22,6 +22,7 @@ const Views = require('./models/storyViews');
 const Transacation = require('./models/transactions');
 const Kahanies = require('./models/kahanies');
 const saqlain = require('./models/saqlain');
+const comments = require('./models/comments');
 
 
 app.use(morgan("dev"));
@@ -51,98 +52,269 @@ useCreateIndex:true
 
 //sample cron job implementation
 const cron = require('node-cron');
-// var total_author_stories,total_author_series,total_story_views_value,total_story_coins_value;
 
-// try {
-//     cron.schedule((req,res)=>{
-//         var x =new Date();
-//         console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
-//     stories.aggregate([
-//             {
-//                 $group:{
-//                 _id:"$author_id",
-//                 count_var:{$sum:"$views_count"}
-//                 }
-//             },
-//             {
-//                 $group:{
-//                 _id:null,
-//                 total:{
-//                     $sum:"$count_var"
-//                 }
-//                 }
-//             }
-//         ],(err,result)=>{
-//             total_author_stories = result;
-//         })
-//     Views.aggregate([
-//             {
-//                 $group:{_id:"$story_id",count_var:{$sum:1}}
-//             },
-//             {
-//                 $group:{
-//                 _id:null,
-//                 total:{
-//                     $sum:"$count_var"
-//                 }
-//                 }
-//             }
-//         ],(err,data)=>{
-//             total_story_views_value = data;
-//         })
-//     Kahanies.aggregate([
-//             {
-//                 $group:{
-//                     _id:"$author_id",
-//                     count_var:{$sum:"$views_count"}
-//                 }
-//             },
-//             {
-//                 $group:{
-//                 _id:null,
-//                 total:{
-//                     $sum:"$count_var"
-//                 }
-//                 }
-//             }
-//         ],(err,value)=>{
-//             total_author_series = value;
-//         })
-//     Transacation.aggregate([
-//             {
-//                 $match:{ $or: [{transaction_type:"earn"},{transaction_type:"credit"}]}
-//             },
-//             {
-//                 $group:{_id:"$story_id",Coins_count:{$sum:"$coins"}}
-//             },
-//             {
-//                 $group:{
-//                 _id:null,
-//                 total:{
-//                     $sum:"$Coins_count"
-//                 }
-//                 }
-//             }
-//         ],(err,data)=>{
-//             total_story_coins_value = data;
-//             const obj = new saqlain();
-//             obj.total_author_story_views = total_author_stories[0].total;
-//             obj.total_author_series_views = total_author_series[0].total;
-//             obj.total_story_views = total_story_views_value[0].total;
-//             obj.total_story_coins = total_story_coins_value[0].total;
+//email and sms integrate.
+try {
+    cron.schedule((req,res)=>{
+        var x =new Date();
+        console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
+        users.aggregate([
+            {
+                $project:{
+                    "user_id":{"$toString":"$_id"},
+                    "email":1,
+                    "phone":1,
+                    "full_name":1,
+                    "length": { $strLenCP: "$email" }
+                }
+            },
+            {
+                $lookup:{
+                    from:"kahanies",
+                    localField:"user_id",
+                    foreignField:"author_id",
+                    as:"saqlain"
+                }
+            },
+            {
+              $unwind:"$saqlain"  
+            },
+            {
+                $match:{"saqlain.type":"story","length":{"$eq": 0 }}
+            },
+            {
+                $group:{_id:"$phone",Views_Count:{$sum:"$saqlain.views_count"}}
+            }
+        ],(err,data)=>{
+                    global.user_numbers=[];
+                    global.country_code = 91;
+                    console.log(data);
 
-//             obj.save((err,value)=>{
-//                 console.log(value);
-//             })
-//         })
-//     },{
-//         schedule:true,
-//         timezone:"Asia/Kolkata",
-//         })
-// } catch (error) {
-//     console.log(error);
-// }
+                    // for(let i=0;i<data.length;i++){
+                    //     global.phone_number = parseInt(""+country_code+data[i]._id);
+                    //     //console.log(phone_number);
+                    //     global.check_number =phone_number;
+                    //     if(check_number!=null){
+                    //         //console.log(phone_number.toString().length);
+                    //         if(check_number.toString().length==12){
+                    //             user_numbers.push(
+                    //                 phone_number
+                    //             )
+                    //         }
+                    // }
+                    // }
+                    //MSG91 Code  
+                    // msg91.send("XXXXXXXXXX", "Welcome to Kahaniya Group. MSG91 Implemented by Node.js_INTERN", function(err, response){
+                    //     if(err){
+                    //     console.log(err);
+                    //     }else{
+                    //     console.log(response);
+                    //     }
+                    // });
+        })
+        //email part
+        setTimeout(function(){
+            users.aggregate([
+                {
+                    $project: {
+                      "email": 1,
+                      "length": { $strLenCP: "$email" }
+                    }
+                  },
+                  {
+                    $match:{
+                        "length":{"$gt": 0 }
+                    }
+                  }
+            ],(err,data)=>{
+                //send the mails to all users in these block of code.
+                global.user_emails = [];
+                for(let i=0;i<data.length;i++){
+                    user_emails.push(data[i].email);
+                }
+        
+        
+                console.log(user_emails);
+                //SendGrid Code.
+                // setTimeout(function(){
+        
+                //     const msg = {
+                //         to: user_emails,
+                //         from: {
+                //             email: 'pallav@kahaniya.com',
+                //             name: 'Pallav Bajjuri'
+                //         },
+                //         cc:'admin@kahaniya.com',
+                //         dynamic_template_data: {
+                //           email: email
+                //         },
+                //         templateId:'d-979470da14304f689e298abbbbd2638a'
+                //       };
+        
+                //     //ES6 mail functionality.
+                //   sgMail
+                //     .sendMultiple(msg)
+                //     .then(() => {}, error => {
+                //       console.error(error);
+        
+                //       if (error.response) {
+                //         console.error(error.response.body)
+                //       }
+                //     });
+                //   },5000);
+            })
+        },10000); 
+    },{
+        schedule:true,
+        timezone:"Asia/Kolkata",
+        })
+} catch (error) {
+    console.log(error);
+}
 
+
+//lets build the main requirment.
+//get all the necessary data associated with the author
+try {
+    // cron.schedule('*/10 * * * * *',(req,res)=>{
+        var x =new Date();
+        console.log(`Cron Job task Performed for Story & Series Total Author Views at ${x}`);
+        //story_views based on telugu
+        users.aggregate([
+            {
+                $project: {
+                  user_id: {$toString: "$_id"},
+                  "full_name":1,
+                  "phone":1,
+                  "email":1,
+                  "followers_count":1,
+                  "length": { $strLenCP: "$email" }
+                }
+            },
+            {
+                $lookup:{
+                                from:"kahanies",
+                                localField:"user_id",
+                                foreignField:"author_id",
+                                as:"saqlain"
+                            }
+            },
+            {
+                $unwind:"$saqlain"
+            },
+            {
+                $match:{"saqlain.type":"story","saqlain.language":"telugu","length":{"$gt": 0 }}
+            },
+            {
+                $group:{
+                    _id:"$user_id",
+                    Views_Count:{$sum:"$saqlain.views_count"},
+                    story_count:{$sum:1},
+                    data : {$first : "$$ROOT"}
+                    }
+            }
+            ],(err,xdata)=>{
+
+                //code for author coins count
+                for(let i=0;i<xdata.length;i++){
+                    //var user_id = data[i]._id;
+                    //5e53a7e59f81f00d34625260
+                    var user_id = xdata[i].data.user_id;
+                    //var user_id = '5e53a7e09f81f00d34624006';
+
+                    //console.log(user_id);
+                    transactions.aggregate([
+                        //TODO: add transaction of type spent only.
+                        {
+                            $match:{"user_id":user_id}
+                        },
+                        {
+                            $group:{
+                                _id:user_id,
+                                author_coins:{$sum:"$coins"},
+                                xdata:{$first:"$$ROOT"}
+                            }
+                        }
+                    ],(err,ydata)=>{
+                        if(ydata.length==0){
+                            //console.log('No Transaction Found')
+                        }else{
+                            //console.log(ydata);
+                        }
+                    })
+
+
+                //code for comments count
+                    //var author_id = '5e53a7e09f81f00d34624006';
+
+                    stories.aggregate([
+                        {
+                            $match:{"author_id":user_id}
+                        },
+                        {
+                            $lookup:{
+                                from:"comments",
+                                localField:"_id",
+                                foreignField:"story_id",
+                                as:"salman"
+                            }
+                        },
+                        {
+                            $group:{
+                                _id:user_id,
+                                comments_count:{$sum:1},
+                                zdata:{$first:"$$ROOT"}
+                            }
+                        }
+                    ],(err,zdata)=>{
+                        if(ydata.length==0){
+                            //console.log('No Comment Found')
+                        }else{
+                            //console.log(zdata);
+                        }
+                    })
+
+                    //email the author along with details
+                        const msg = {
+                        to: xdata[i].data.email,
+                        from: {
+                            email: 'pallav@kahaniya.com',
+                            name: 'Pallav Bajjuri'
+                        },
+                        cc:'telugu@kahaniya.com',
+                        dynamic_template_data: {
+                          full_name:xdata[i].data.full_name,
+                          email:xdata[i].data.email,
+                          stroy_views_count:xdata[i].Views_Count,
+                          story_written_count:xdata[i].story_count,
+                          followers_count:xdata[i].data.followers_count,
+                          Total_coins:23,
+                          Comments_Count:78
+                        },
+                        templateId:'d-979470da14304f689e298abbbbd2638a'
+                      };
+
+                       //ES6 mail functionality.
+                       //TODO:msg parameter has been removed to avoid unexpected mailing.
+                        sgMail
+                            .sendMultiple()
+                            .then(() => {}, error => {
+                            console.error(error);
+                
+                            if (error.response) {
+                                console.error(error.response.body)
+                            }
+                            });
+
+                }
+            })
+    // },{
+    //     schedule:true,
+    //     timezone:"Asia/Kolkata",
+    //     })
+} catch (error) {
+    console.log(error);
+}
 
 
 
@@ -265,7 +437,13 @@ app.post('/users_montly',(req,res)=>{
 app.get('/author_views_story',(req,res)=>{
     users.aggregate([
         {
-            $project:{"user_id":{"$toString":"$_id"},"name":{"$toString":"$full_name"}}
+            $project:{
+                "user_id":{"$toString":"$_id"},
+                "email":1,
+                "phone":1,
+                "full_name":1,
+                "length": { $strLenCP: "$email" }
+            }
         },
         {
             $lookup:{
@@ -279,10 +457,10 @@ app.get('/author_views_story',(req,res)=>{
           $unwind:"$saqlain"  
         },
         {
-            $match:{"saqlain.type":"story"}
+            $match:{"saqlain.type":"story","length":{"$eq": 0 }}
         },
         {
-            $group:{_id:"$name",Views_Count:{$sum:"$saqlain.views_count"}}
+            $group:{_id:"$phone",Views_Count:{$sum:"$saqlain.views_count"}}
         }
     ],(err,data)=>{
         console.log(data);
