@@ -238,8 +238,9 @@ try {
                     ],(err,ydata)=>{
                         if(ydata.length==0){
                             //console.log('No Transaction Found')
+                            ydata[i].author_coins=0;
                         }else{
-                            //console.log(ydata);
+                            console.log(ydata);
                         }
                     })
 
@@ -267,10 +268,11 @@ try {
                             }
                         }
                     ],(err,zdata)=>{
-                        if(ydata.length==0){
+                        if(zdata.length==0){
                             //console.log('No Comment Found')
+                            zdata[i].comments_count=0;
                         }else{
-                            //console.log(zdata);
+                            console.log(zdata);
                         }
                     })
 
@@ -288,23 +290,23 @@ try {
                           stroy_views_count:xdata[i].Views_Count,
                           story_written_count:xdata[i].story_count,
                           followers_count:xdata[i].data.followers_count,
-                          Total_coins:23,
-                          Comments_Count:78
+                          Total_coins:ydata[i].author_coins,
+                          Comments_Count:zdata[i].comments_count
                         },
                         templateId:'d-979470da14304f689e298abbbbd2638a'
                       };
 
                        //ES6 mail functionality.
                        //TODO:msg parameter has been removed to avoid unexpected mailing.
-                        sgMail
-                            .sendMultiple()
-                            .then(() => {}, error => {
-                            console.error(error);
+                        // sgMail
+                        //     .sendMultiple()
+                        //     .then(() => {}, error => {
+                        //     console.error(error);
                 
-                            if (error.response) {
-                                console.error(error.response.body)
-                            }
-                            });
+                        //     if (error.response) {
+                        //         console.error(error.response.body)
+                        //     }
+                        //     });
 
                 }
             })
