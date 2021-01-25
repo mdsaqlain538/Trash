@@ -3,6 +3,7 @@ require('dotenv').config()
 var express = require('express');
 var app = express();
 const bodyParser = require('body-parser');
+var morgan = require('morgan');
 
 var port = process.env.port || 1234;
 //Middle ware..
@@ -35,7 +36,7 @@ const saqlain = require('./models/saqlain');
 const comments = require('./models/comments');
 const Follows = require('./models/userfollows');
 var ObjectId = require('mongodb').ObjectID;
-
+app.use(morgan("dev"));
 
 // data crunching for coins only
 //1. coins by story daily basis.
@@ -44,7 +45,7 @@ app.get('/story_coins_daily',(req,res)=>{
     var yesterday = new Date(today)
 
 
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setDate(yesterday.getDate() - 30);
     today = today.setHours(23,59,59);
     yesterday = yesterday.setHours(0,0,0);
     start_date = (new Date(yesterday));
@@ -53,7 +54,7 @@ app.get('/story_coins_daily',(req,res)=>{
     kahanies.aggregate([
         {
             $project:{
-                "story_id":{"$toString":"$_id"},
+                "kahani_id":{"$toString":"$_id"},
                 "type":1,
                 "author_id":1,
                 "language":1,
@@ -61,33 +62,53 @@ app.get('/story_coins_daily',(req,res)=>{
                 }
         },
         {
-                    $lookup:{
-                        from:"transactions",
-                        localField:"story_id",
-                        foreignField:"story_id",
-                        as:"saqlain"
-                    }
+            $match:{type:"story"}
         },
         {
-            $unwind:"$saqlain"
-        },
-        {
-            $match:{"product_type":"story","transaction_type":"spent"}
-        },
-        {
-            $match:{
-                "created_at":{"$gte": start_date , "$lte":end_date}
+            $lookup:{
+                from:"stories",
+                localField:"kahani_id",
+                foreignField:"kahani_id",
+                as:"saqlain"
             }
         },
         {
-            $group:{_id:"$story_id",coins_count:{$sum:"$saqlain.coins"}}
+            $unwind:"$saqlain"
         }
     ],(err,data)=>{
-        console.log(data);
+        for(let i=0;i<1;i++){
+
+            //var id = data[i].saqlain._id;
+            //const myMongoDbObjId = ObjectId(id);
+            //var story_id = id.toString();
+            //var story_id = '5e54a5d3ddc6c40c74998e45';
+
+            //console.log('story-ID:'+story_id);
+
+            transactions.aggregate([
+                {
+                    $match:{"story_id":"5e54a5d3ddc6c40c74998e45"}
+                },
+                {
+                    $match:{"transaction_type":"earn"}
+                },
+                {
+                    $match:{
+                        "created_at":{"$gte": start_date , "$lte":end_date}
+                    }
+                },
+                {
+                    $group:{_id:"5e54a5d3ddc6c40c74998e45",coins_count:{$sum:"$coins"}}
+                }
+            ],(err,result)=>{
+                console.log('in result');
+                console.log(result);
+            })
+        }
     })
 })
 
-
+ 
 //2. coins by author daily basis
 app.get('/author_coins_daily',(req,res)=>{
     var today = new Date()
@@ -103,7 +124,7 @@ app.get('/author_coins_daily',(req,res)=>{
     kahanies.aggregate([
         {
             $project:{
-                "story_id":{"$toString":"$_id"},
+                "kahani_id":{"$toString":"$_id"},
                 "type":1,
                 "author_id":1,
                 "language":1,
@@ -111,18 +132,21 @@ app.get('/author_coins_daily',(req,res)=>{
                 }
         },
         {
-                    $lookup:{
-                        from:"transactions",
-                        localField:"story_id",
-                        foreignField:"story_id",
-                        as:"saqlain"
-                    }
+            $match:{type:"story"}
+        },
+        {
+            $lookup:{
+                from:"transactions",
+                localField:"author_id",
+                foreignField:"user_id",
+                as:"saqlain"
+            }
         },
         {
             $unwind:"$saqlain"
         },
         {
-            $match:{"product_type":"story","transaction_type":"earn"}
+            $match:{"$saqlain.transaction_type":"earn"}
         },
         {
             $match:{
@@ -130,7 +154,10 @@ app.get('/author_coins_daily',(req,res)=>{
             }
         },
         {
-            $group:{_id:"$author_id",coins_count:{$sum:"$saqlain.coins"}}
+            $group:{
+                _id:"$author_id",
+                "coins":{$sum:"$saqlain.coins"}
+            }
         }
     ],(err,data)=>{
         console.log(data);
@@ -145,7 +172,7 @@ app.get('/series_coins_daily',(req,res)=>{
     var yesterday = new Date(today)
 
 
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setDate(yesterday.getDate() - 30);
     today = today.setHours(23,59,59);
     yesterday = yesterday.setHours(0,0,0);
     start_date = (new Date(yesterday));
@@ -154,7 +181,7 @@ app.get('/series_coins_daily',(req,res)=>{
     kahanies.aggregate([
         {
             $project:{
-                "story_id":{"$toString":"$_id"},
+                "kahani_id":{"$toString":"$_id"},
                 "type":1,
                 "author_id":1,
                 "language":1,
@@ -162,47 +189,55 @@ app.get('/series_coins_daily',(req,res)=>{
                 }
         },
         {
-                    $lookup:{
-                        from:"transactions",
-                        localField:"story_id",
-                        foreignField:"story_id",
-                        as:"saqlain"
-                    }
+            $match:{type:"series"}
         },
         {
-            $unwind:"$saqlain"
-        },
-        {
-            $match:{"saqlain.product_type":{$in:['story','series']},"saqlain.transaction_type":"spent"}
-        },
-        {
-            $match:{
-                "created_at":{"$gte": start_date , "$lte":end_date}
+            $lookup:{
+                from:"stories",
+                localField:"kahani_id",
+                foreignField:"kahani_id",
+                as:"saqlain"
             }
         },
         {
-            $group:{_id:"$story_id",coins_count:{$sum:"$saqlain.coins"}}
+            $unwind:"$saqlain"
         }
     ],(err,data)=>{
-        console.log(data);
+        for(let i=0;i<1;i++){
+
+            //var id = data[i].saqlain._id;
+            //const myMongoDbObjId = ObjectId(id);
+            //var story_id = id.toString();
+            //var story_id = '5e54a5d3ddc6c40c74998e45';
+
+            //console.log('story-ID:'+story_id);
+
+            transactions.aggregate([
+                {
+                    $match:{"story_id":"5e54a5d3ddc6c40c74998e45"}
+                },
+                {
+                    $match:{"transaction_type":"earn"}
+                },
+                {
+                    $match:{
+                        "created_at":{"$gte": start_date , "$lte":end_date}
+                    }
+                },
+                {
+                    $group:{_id:"5e54a5d3ddc6c40c74998e45",coins_count:{$sum:"$coins"}}
+                }
+            ],(err,result)=>{
+                console.log('in result');
+                console.log(result);
+            })
+        }
     })
 })
 
-
-//4. Language wise coins 
+//4. Language wise coins daily basis
 //done
 app.post('/language_wise_coins',(req,res)=>{
-    var today = new Date()
-    var yesterday = new Date(today)
-
-
-    yesterday.setDate(yesterday.getDate() - 1);
-    today = today.setHours(23,59,59);
-    yesterday = yesterday.setHours(0,0,0);
-    start_date = (new Date(yesterday));
-    end_date = (new Date(today));
-
-
     let lang = req.body.language;
     Kahanies.aggregate([
         {
@@ -231,29 +266,15 @@ app.post('/language_wise_coins',(req,res)=>{
             $match:{ $or: [{"saqlain.transaction_type":"earn"}]}
         },
         {
-            $match:{
-                "created_at":{"$gte": start_date , "$lte":end_date}
-            }
-        },
-        {
             $group:{_id:"$language",Coins_count:{$sum:"$saqlain.coins"}}
         }
 ],(err,data)=>{
-    res.send(data);
+    console.log(data);
 })
 });
 
 
-//5.genre coins by daily basis
-app.get('/genre_views',(req,res)=>{
-    Kahanies.aggregate([
-        {
-            $group:{_id:"$genre",count:{$sum:"$views_count"}}
-        }
-    ],(err,data)=>{
-        res.send(data);
-    })
-})
+
 
 
 //done
@@ -309,6 +330,9 @@ app.post('/genre_wise_coins',(req,res)=>{
 })
 });
 
+//------------------------------------------------------//
+//------------------------------------------------------//
+//------------------------------------------------------//
 
 
 //Views Part
@@ -360,11 +384,11 @@ app.get('/story_view_daily',(req,res)=>{
                 {
                     $match:{"story_id":story_id}
                 },
-                {
-                    $match:{
-                        "created_at":{"$gte": start_date , "$lte":end_date}
-                    }
-                },
+                // {
+                //     $match:{
+                //         "created_at":{"$gte": start_date , "$lte":end_date}
+                //     }
+                // }
                 {
                     $group:{
                         _id:"$story_id",
@@ -426,11 +450,11 @@ app.get('/author_view_daily',(req,res)=>{
                 {
                     $match:{"story_id":story_id}
                 },
-                {
-                    $match:{
-                        "created_at":{"$gte": start_date , "$lte":end_date}
-                    }
-                },
+                // {
+                //     $match:{
+                //         "created_at":{"$gte": start_date , "$lte":end_date}
+                //     }
+                // },
                 {
                     $group:{
                         _id:"$author_id",

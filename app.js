@@ -76,7 +76,11 @@ try {
                   "phone":1,
                   "email":1,
                   "followers_count":1,
-                  "length": { $strLenCP: "$email" }
+                  "length": { $strLenCP: "$email" },
+                  "Views_count":
+                  {
+                      $cond:{ if: { }, then: 30, else: 20 }
+                  },
                 }
             },
             {
@@ -132,7 +136,7 @@ try {
                             g_ydata.author_coins=0;
                         }else{
                             g_ydata = ydata;
-                            console.log(ydata);
+                            //console.log(ydata);
                         }
                     })
 
@@ -172,7 +176,7 @@ try {
                             g_zdata.comments_count=0;
                         }else{
                             g_zdata = zdata;
-                            console.log(zdata);
+                            //console.log(zdata);
                         }
                     })
 
@@ -301,7 +305,7 @@ try {
                             g_ydata.author_coins=0;
                         }else{
                             g_ydata = ydata;
-                            console.log(ydata);
+                            //console.log(ydata);
                         }
                     })
 
@@ -850,7 +854,7 @@ app.get('/author_wise_coins',(req,res)=>{
     stories.aggregate([
         //my new code
         {
-            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*1000)}}
+            $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*100000)}}
         },
         // {
         //     $match:{
@@ -973,7 +977,7 @@ app.post('/language_wise_coins',(req,res)=>{
             $group:{_id:"$language",Coins_count:{$sum:"$saqlain.coins"}}
         }
 ],(err,data)=>{
-    res.send(data);
+    console.log(data);
 })
 });
 
