@@ -92,18 +92,18 @@ app.get('/test',(req,res)=>{
                             from:"stories",
                             localField:"author_id",
                             foreignField:"author_id",
-                            as:"saqlain"
+                            as:"kahani_story"
                         }
                     },
-                    {
-                        $match:{
-                            "created_at":{"$gte": start_date , "$lte":end_date}
-                        }
-                    },
+                    // {
+                    //     $match:{
+                    //         "created_at":{"$gte": start_date , "$lte":end_date}
+                    //     }
+                    // },
                     {
                             $project: {
                                 _id:"$author_id",          
-                                "story_count" : {$size:"$saqlain"}
+                                "story_count" : {$size:"$kahani_story"}
                             }
                         },
                         {
@@ -129,7 +129,7 @@ app.get('/test',(req,res)=>{
                             from:"stories",
                             localField:"author_id",
                             foreignField:"author_id",
-                            as:"saqlain"
+                            as:"kahani_series"
                         }
                     },
                     {
@@ -140,7 +140,7 @@ app.get('/test',(req,res)=>{
                     {
                             $project: {
                                 _id:"$author_id",          
-                                "story_count" : {$size:"$saqlain"}
+                                "story_count" : {$size:"$kahani_series"}
                             }
                         },
                         {
@@ -150,10 +150,14 @@ app.get('/test',(req,res)=>{
                             }
                         }
                 ],(err,stories_count)=>{
-                    //console.log(stories_count);
+                    if(stories_count.length==0){
+                        //no series for the author..
+                    }else{
+                    //console.log("series-count:"+stories_count);
+                    }
                 })
 
-                //story-view    ---done
+                //story-view    ---need to update
                 kahanies.aggregate([
                     {
                         $match:{
@@ -166,18 +170,21 @@ app.get('/test',(req,res)=>{
                             from:"stories",
                             localField:"author_id",
                             foreignField:"author_id",
-                            as:"saqlain"
+                            as:"kahani_story"
                         }
                     },
-                    {
-                        $unwind:"$saqlain"
-                    }
+                    { 
+                        $unwind:"$kahani_story"
+                    } 
                 ],(err,data)=>{
+
+                    console.log('in data');
 
                     for(let i=0;i<data.length;i++){
 
-                        var story_Object_id = data[i].saqlain._id;
+                        var story_Object_id = data[i].kahani_story._id;
                         var story_id_string = story_Object_id.toString();
+                        console.log(story_id_string);
 
                         stories.aggregate([
                             {
@@ -185,10 +192,10 @@ app.get('/test',(req,res)=>{
                                     from:"story-views",
                                     localField:"story_id",
                                     foreignField:"story_id",
-                                    as:'salman'
+                                    as:'author_storyviews'
                                 }
                             },{
-                                $unwind:'$salman'
+                                $unwind:'$author_storyviews'
                             },
                             {
                                 $match:{
@@ -212,7 +219,7 @@ app.get('/test',(req,res)=>{
                     }
                 })
 
-                //series-views --done
+                //series-views --need to update
                 kahanies.aggregate([
                     {
                         $match:{
@@ -225,17 +232,17 @@ app.get('/test',(req,res)=>{
                             from:"stories",
                             localField:"author_id",
                             foreignField:"author_id",
-                            as:"saqlain"
+                            as:"kahani_series"
                         }
                     },
                     {
-                        $unwind:"$saqlain"
+                        $unwind:"$kahani_series"
                     }
                 ],(err,data)=>{
 
                     for(let i=0;i<data.length;i++){
 
-                        var story_Object_id = data[i].saqlain._id;
+                        var story_Object_id = data[i].kahani_series._id;
                         var story_id_string = story_Object_id.toString();
 
                         stories.aggregate([
@@ -244,10 +251,10 @@ app.get('/test',(req,res)=>{
                                     from:"story-views",
                                     localField:"story_id",
                                     foreignField:"story_id",
-                                    as:'salman'
+                                    as:'kahani_seriesviews'
                                 }
                             },{
-                                $unwind:'$salman'
+                                $unwind:'$kahani_seriesviews'
                             },
                             {
                                 $match:{
@@ -266,7 +273,7 @@ app.get('/test',(req,res)=>{
                                 }
                             }
                         ],(err,story_daily_views)=>{
-                            console.log(story_daily_views);
+                            //console.log(story_daily_views);
                         })
                     }
                 })
@@ -282,8 +289,11 @@ app.get('/test',(req,res)=>{
                             from:"comments",
                             localField:"_id",
                             foreignField:"story_id",
-                            as:"salman"
+                            as:"kahani_comment"
                         }
+                    },
+                    {
+                        $unwind:"$kahani_comment"
                     },
                     {
                         $match:{
@@ -313,7 +323,9 @@ app.get('/test',(req,res)=>{
                         $match:{"target_id":user_id}
                     },
                     {
-                        $match:{"created_at":{"$gt": new Date(Date.now() - 24*60*60*1000)}}
+                        $match:{
+                            "created_at":{"$gte": start_date , "$lte":end_date}
+                        }
                     },
                     {
                         $group:{
@@ -344,9 +356,11 @@ app.get('/test',(req,res)=>{
                 ],(err,coins_data_daily)=>{
                     if(coins_data_daily.length==0){
                         //console.log('No Transaction Found')
-                        g_ydata.author_coins=0;
                     }else{
-                        g_ydata = coins_data_daily;
+                        g_coins_data.push({
+                            _id:coins_data_daily._id,
+                            author_coins:coins_data_daily.author_coins
+                        })
                         //console.log(ydata);
                     }
                 })
@@ -354,24 +368,24 @@ app.get('/test',(req,res)=>{
 
 
                 //email the author along with details
-                    const msg = {
-                    to: xdata[i].data.email,
-                    from: {
-                        email: 'pallav@kahaniya.com',
-                        name: 'Pallav Bajjuri'
-                    },
-                    cc:'telugu@kahaniya.com',
-                    dynamic_template_data: {
-                      full_name:xdata[i].data.full_name,
-                      email:xdata[i].data.email,
-                      stroy_views_count:xdata[i].Views_Count,
-                      story_written_count:xdata[i].story_count,
-                      followers_count:g_z1data.followers_count,
-                      Total_coins:g_y1data.author_coins,
-                      Comments_Count:g_z1data.comments_count
-                    },
-                    templateId:'d-979470da14304f689e298abbbbd2638a'
-                  };
+                //     const msg = {
+                //     to: result[i].email,
+                //     from: {
+                //         email: 'pallav@kahaniya.com',
+                //         name: 'Pallav Bajjuri'
+                //     },
+                //     cc:'telugu@kahaniya.com',
+                //     dynamic_template_data: {
+                //       full_name:xdata[i].data.full_name,
+                //       email:xdata[i].data.email,
+                //       stroy_views_count:xdata[i].Views_Count,
+                //       story_written_count:xdata[i].story_count,
+                //       followers_count:g_z1data.followers_count,
+                //       Total_coins:g_y1data.author_coins,
+                //       Comments_Count:g_z1data.comments_count
+                //     },
+                //     templateId:'d-979470da14304f689e298abbbbd2638a'
+                //   };
             }
         })
 })
